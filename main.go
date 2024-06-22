@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
@@ -14,13 +15,13 @@ import (
 	middleware "money-tracker-backend/src/middleware"
 )
 
-var jwtKey = []byte("my_secret_key")
+var jwtKey = []byte(os.Getenv("JWT_KEY"))
 
 func main() {
 
 	database.ConnectDatabase()
 	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              "https://aeb1b28f74b00ab978941319e3a675ee@o4507263852740608.ingest.us.sentry.io/4507263980994560",
+		Dsn:              os.Getenv("SENTRY_DSN"),
 		EnableTracing:    true,
 		TracesSampleRate: 1.0,
 	}); err != nil {
@@ -29,7 +30,7 @@ func main() {
 
 	db := database.GetDB()
 	app := gin.Default()
-	gin.SetMode(gin.DebugMode)
+	gin.SetMode(os.Getenv("APP_DEBUG"))
 	app.Use(sentrygin.New(sentrygin.Options{}))
 
 	app.GET("/", func(ctx *gin.Context) {
