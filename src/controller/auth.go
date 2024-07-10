@@ -21,6 +21,13 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 
+// Todo make this helper later
+type WriteResponse struct {
+	StatusCode int         `json:"statusCode"`
+	Message    string      `json:"message"`
+	Data       interface{} `json:"data,omitempty"`
+}
+
 // LoginHandler handles the login request and generates JWT token
 func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -72,7 +79,14 @@ func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 		// Set the token as a cookie
 		c.SetCookie("token", tokenString, int(expirationTime.Unix()), "/", "", false, true)
 
-		c.JSON(http.StatusOK, gin.H{"message": "Login successful", "token": tokenString})
+		response := WriteResponse{
+			StatusCode: http.StatusOK,
+			Message:    "Login successful",
+			Data:       map[string]string{"token": tokenString},
+		}
+
+		c.JSON(http.StatusOK, response)
+
 	}
 }
 

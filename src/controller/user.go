@@ -6,10 +6,102 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 
 	models "money-tracker-backend/src/model"
 )
+
+// TODO move into helpers later
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+// isUniqueViolation checks if the error is due to a unique constraint violation
+func isUniqueViolation(err error) bool {
+	if pqErr, ok := err.(*pq.Error); ok {
+		return pqErr.Code == "23505" // PostgreSQL unique violation code
+	}
+	return false
+}
+func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get the user from the request payload
+		var user models.User
+
+		if err := c.Bind(&user); err != nil {
+			fmt.Println("Error binding JSON:", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		// Hash the user's password
+		hashedPassword, err := hashPassword(user.Password)
+		if err != nil {
+			fmt.Println("Error hashing password:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+		user.Password = hashedPassword
+
+		// Log the received user
+		fmt.Printf("Received user: %+v\n", user)
+
+		// Query to search for user by username
+		query := `
+		INSERT INTO
+			"users" (
+				username,
+				password,
+				email,
+				created_at,
+				updated_at
+			)
+			VALUES ($1, $2, $3, NOW(), NOW())
+			RETURNING
+			id,
+			username,
+			email,
+			created_at,
+			updated_at
+		`
+
+		var newUser models.User
+		err = db.QueryRow(query, user.Username, user.Password, user.Email).Scan(&newUser.ID, &newUser.Username, &newUser.Email, &newUser.CreatedAt, &newUser.UpdatedAt)
+		if err != nil {
+			fmt.Println("Error inserting user:", err)
+
+			// Check if the error is due to unique constraint violation
+			if isUniqueViolation(err) {
+				response := WriteResponse{
+					StatusCode: http.StatusConflict,
+					Message:    "Username or email already exists",
+					Data:       map[string]string{"error": err.Error()},
+				}
+				c.JSON(http.StatusConflict, response)
+				return
+			}
+
+			response := WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Could not create user",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusConflict, response)
+			return
+		}
+		// Log the received user
+		fmt.Printf("Created user: %+v\n", newUser)
+		response := WriteResponse{
+			StatusCode: http.StatusOK,
+			Message:    "Registration successful",
+			Data:       newUser,
+		}
+		c.JSON(http.StatusOK, response)
+
+	}
+}
 
 // searchHandler handles the search request and returns user information
 func SearchHandler(db *sql.DB) gin.HandlerFunc {

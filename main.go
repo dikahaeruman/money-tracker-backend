@@ -30,7 +30,8 @@ func main() {
 
 	db := database.GetDB()
 	app := gin.Default()
-	gin.SetMode(os.Getenv("APP_DEBUG"))
+	// gin.SetMode(os.Getenv("APP_DEBUG"))
+	gin.SetMode(gin.DebugMode)
 	app.Use(sentrygin.New(sentrygin.Options{}))
 
 	app.GET("/", func(ctx *gin.Context) {
@@ -39,6 +40,7 @@ func main() {
 
 	app.POST("/login", controller.LoginHandler(db, jwtKey))
 	app.POST("/logout", controller.LogoutHandler)
+	app.POST("/create-user", controller.CreateUserHandler(db))
 	app.GET("/users", middleware.JWTMiddleware(jwtKey), controller.AllUser(db))
 	app.POST("/search", middleware.JWTMiddleware(jwtKey), controller.SearchHandler(db))
 
