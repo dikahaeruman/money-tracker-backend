@@ -30,8 +30,15 @@ func main() {
 
 	db := database.GetDB()
 	app := gin.Default()
-	// gin.SetMode(os.Getenv("APP_DEBUG"))
-	gin.SetMode(gin.DebugMode)
+	mode := os.Getenv("APP_DEBUG")
+	fmt.Println("Gin mode:", mode)
+
+	if mode == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	} else {
+		gin.SetMode(gin.DebugMode)
+	}
+
 	app.Use(sentrygin.New(sentrygin.Options{}))
 
 	app.GET("/", func(ctx *gin.Context) {

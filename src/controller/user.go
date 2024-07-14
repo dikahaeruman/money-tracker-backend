@@ -3,28 +3,14 @@ package controller
 import (
 	"database/sql"
 	"fmt"
+	models "money-tracker-backend/src/model"
+	util "money-tracker-backend/src/util"
+
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
-
-	models "money-tracker-backend/src/model"
 )
 
-// TODO move into helpers later
-func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(bytes), err
-}
-
-// isUniqueViolation checks if the error is due to a unique constraint violation
-func isUniqueViolation(err error) bool {
-	if pqErr, ok := err.(*pq.Error); ok {
-		return pqErr.Code == "23505" // PostgreSQL unique violation code
-	}
-	return false
-}
 func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get the user from the request payload
@@ -37,7 +23,7 @@ func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
 		}
 
 		// Hash the user's password
-		hashedPassword, err := hashPassword(user.Password)
+		hashedPassword, err := util.HashPassword(user.Password)
 		if err != nil {
 			fmt.Println("Error hashing password:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -73,8 +59,8 @@ func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
 			fmt.Println("Error inserting user:", err)
 
 			// Check if the error is due to unique constraint violation
-			if isUniqueViolation(err) {
-				response := WriteResponse{
+			if util.IsUniqueViolation(err) {
+				response := util.WriteResponse{
 					StatusCode: http.StatusConflict,
 					Message:    "Username or email already exists",
 					Data:       map[string]string{"error": err.Error()},
@@ -83,7 +69,7 @@ func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
 				return
 			}
 
-			response := WriteResponse{
+			response := util.WriteResponse{
 				StatusCode: http.StatusInternalServerError,
 				Message:    "Could not create user",
 				Data:       map[string]string{"error": err.Error()},
@@ -93,7 +79,7 @@ func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
 		}
 		// Log the received user
 		fmt.Printf("Created user: %+v\n", newUser)
-		response := WriteResponse{
+		response := util.WriteResponse{
 			StatusCode: http.StatusOK,
 			Message:    "Registration successful",
 			Data:       newUser,

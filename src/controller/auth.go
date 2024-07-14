@@ -13,19 +13,13 @@ import (
 
 	middleware "money-tracker-backend/src/middleware"
 	models "money-tracker-backend/src/model"
+	util "money-tracker-backend/src/util"
 )
 
 // Credentials struct to handle email and password
 type Credentials struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
-}
-
-// Todo make this helper later
-type WriteResponse struct {
-	StatusCode int         `json:"statusCode"`
-	Message    string      `json:"message"`
-	Data       interface{} `json:"data,omitempty"`
 }
 
 // LoginHandler handles the login request and generates JWT token
@@ -36,7 +30,13 @@ func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 
 		// Parse and validate JSON payload
 		if err := c.BindJSON(&creds); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusBadRequest,
+				Message:    "Invalid request payload",
+				Data:       map[string]string{"error": err.Error()},
+			}
+
+			c.JSON(http.StatusBadRequest, response)
 			return
 		}
 
@@ -46,17 +46,32 @@ func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 		// Execute the query
 		err := dbInstance.QueryRow(query, creds.Email).Scan(&user.ID, &user.Username, &user.Password, &user.Email)
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusUnauthorized,
+				Message:    "Invalid email or password",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusUnauthorized, response)
 			return
 		} else if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Database error",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusInternalServerError, response)
 			return
 		}
 
 		// Compare the hashed password with the provided password
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password))
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusUnauthorized,
+				Message:    "Invalid email or password",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusUnauthorized, response)
 			return
 		}
 
@@ -72,14 +87,19 @@ func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 		tokenString, err := token.SignedString(jwtKey)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Could not generate token",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusInternalServerError, response)
 			return
 		}
 
 		// Set the token as a cookie
 		c.SetCookie("token", tokenString, int(expirationTime.Unix()), "/", "", false, true)
 
-		response := WriteResponse{
+		response := util.WriteResponse{
 			StatusCode: http.StatusOK,
 			Message:    "Login successful",
 			Data:       map[string]string{"token": tokenString},
@@ -95,6 +115,13 @@ func LogoutHandler(c *gin.Context) {
 	// Clear the token cookie by setting it with an expired value
 	c.SetCookie("token", "", -1, "/", "", false, true)
 
+	response := util.WriteResponse{
+		StatusCode: http.StatusOK,
+		Message:    "Logout successful",
+		Data:       []interface{}{}, // Initialize Data as an empty slice
+	}
+
 	// Respond to the client indicating the user is logged out
-	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+	c.JSON(http.StatusOK, response)
+
 }
