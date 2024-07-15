@@ -13,9 +13,11 @@ var DB *sql.DB // Exported global variable to hold the database connection
 func ConnectDatabase() error {
 
 	// Load environment variables from .env file
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("Error loading .env file:", err)
-		os.Exit(1) // Exit the program with non-zero status code indicating failure
+	if os.Getenv("APP_ENV") != "production" {
+		if err := godotenv.Load(); err != nil {
+			fmt.Println("Error loading .env file:", err)
+			os.Exit(1) // Exit the program with non-zero status code indicating failure
+		}
 	}
 
 	// Continue with your application logic
