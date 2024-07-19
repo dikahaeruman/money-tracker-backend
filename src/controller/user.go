@@ -3,13 +3,91 @@ package controller
 import (
 	"database/sql"
 	"fmt"
+	models "money-tracker-backend/src/model"
+	util "money-tracker-backend/src/util"
+
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
-
-	models "money-tracker-backend/src/model"
 )
+
+func CreateUserHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get the user from the request payload
+		var user models.User
+
+		if err := c.Bind(&user); err != nil {
+			fmt.Println("Error binding JSON:", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		// Hash the user's password
+		hashedPassword, err := util.HashPassword(user.Password)
+		if err != nil {
+			fmt.Println("Error hashing password:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+		user.Password = hashedPassword
+
+		// Log the received user
+		fmt.Printf("Received user: %+v\n", user)
+
+		// Query to search for user by username
+		query := `
+		INSERT INTO
+			"users" (
+				username,
+				password,
+				email,
+				created_at,
+				updated_at
+			)
+			VALUES ($1, $2, $3, NOW(), NOW())
+			RETURNING
+			id,
+			username,
+			email,
+			created_at,
+			updated_at
+		`
+
+		var newUser models.User
+		err = db.QueryRow(query, user.Username, user.Password, user.Email).Scan(&newUser.ID, &newUser.Username, &newUser.Email, &newUser.CreatedAt, &newUser.UpdatedAt)
+		if err != nil {
+			fmt.Println("Error inserting user:", err)
+
+			// Check if the error is due to unique constraint violation
+			if util.IsUniqueViolation(err) {
+				response := util.WriteResponse{
+					StatusCode: http.StatusConflict,
+					Message:    "Username or email already exists",
+					Data:       map[string]string{"error": err.Error()},
+				}
+				c.JSON(http.StatusConflict, response)
+				return
+			}
+
+			response := util.WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Could not create user",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusConflict, response)
+			return
+		}
+		// Log the received user
+		fmt.Printf("Created user: %+v\n", newUser)
+		response := util.WriteResponse{
+			StatusCode: http.StatusOK,
+			Message:    "Registration successful",
+			Data:       newUser,
+		}
+		c.JSON(http.StatusOK, response)
+
+	}
+}
 
 // searchHandler handles the search request and returns user information
 func SearchHandler(db *sql.DB) gin.HandlerFunc {
