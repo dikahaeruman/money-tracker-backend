@@ -45,11 +45,15 @@ func main() {
 		ctx.String(http.StatusOK, "Hello world!")
 	})
 
-	app.POST("/login", controller.LoginHandler(db, jwtKey))
-	app.POST("/logout", controller.LogoutHandler)
-	app.POST("/create-user", controller.CreateUserHandler(db))
-	app.GET("/users", middleware.JWTMiddleware(jwtKey), controller.AllUser(db))
-	app.POST("/search", middleware.JWTMiddleware(jwtKey), controller.SearchHandler(db))
+	api := app.Group("/api")
+	{
+		api.POST("/login", controller.LoginHandler(db, jwtKey))
+		api.POST("/refresh", controller.RefreshTokenHandler(jwtKey))
+		api.POST("/logout", controller.LogoutHandler)
+		api.POST("/create-user", controller.CreateUserHandler(db))
+		api.GET("/users", middleware.JWTMiddleware(jwtKey), controller.AllUser(db))
+		api.POST("/search", middleware.JWTMiddleware(jwtKey), controller.SearchHandler(db))
+	}
 
 	app.Run(":8181")
 }

@@ -4,10 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
@@ -75,17 +74,7 @@ func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 			return
 		}
 
-		// Create the JWT token
-		expirationTime := time.Now().Add(5 * time.Minute)
-		claims := &middleware.Claims{
-			Email: creds.Email,
-			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: expirationTime.Unix(),
-			},
-		}
-
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenString, err := token.SignedString(jwtKey)
+		tokenString, err := middleware.CreateJWTToken(jwtKey, creds.Email)
 		if err != nil {
 			response := util.WriteResponse{
 				StatusCode: http.StatusInternalServerError,
@@ -96,17 +85,100 @@ func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
 			return
 		}
 
+		refreshTokenString, err := middleware.CreateRefreshToken(jwtKey, creds.Email)
+		if err != nil {
+			response := util.WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Could not generate refresh token",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+
 		// Set the token as a cookie
-		c.SetCookie("token", tokenString, int(expirationTime.Unix()), "/", "", false, true)
+		c.SetCookie("token", tokenString, int(middleware.GetDuration().Seconds()), "/", "", false, true)
+		c.SetCookie("refresh_token", refreshTokenString, int(middleware.GetRefreshDuration().Seconds()), "/", "", false, true)
 
 		response := util.WriteResponse{
 			StatusCode: http.StatusOK,
 			Message:    "Login successful",
-			Data:       map[string]string{"token": tokenString},
+			Data: map[string]string{
+				"token":         tokenString,
+				"refresh_token": refreshTokenString,
+				"expires_at":    fmt.Sprintf("%v", middleware.GetDuration().Seconds()),
+			},
 		}
 
 		c.JSON(http.StatusOK, response)
 
+	}
+}
+
+func RefreshTokenHandler(jwtKey []byte) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var payload struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+
+		// Bind JSON request body to payload
+		if err := c.BindJSON(&payload); err != nil {
+			fmt.Printf("check request: %v\n", payload) // Print the raw request body for debugging
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		// Extract the refresh token from the payload
+		refreshTokenStr := payload.RefreshToken
+		if refreshTokenStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Refresh token is required"})
+			return
+		}
+
+		// Parse and validate the refresh token
+		token, err := jwt.Parse(refreshTokenStr, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return jwtKey, nil
+		})
+
+		if err != nil || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token claims"})
+			return
+		}
+
+		email, ok := claims["email"].(string)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID"})
+			return
+		}
+
+		// Generate a new access token
+		newAccessToken, err := middleware.CreateJWTToken(jwtKey, email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate new access token"})
+			return
+		}
+
+		response := util.WriteResponse{
+			StatusCode: http.StatusOK,
+			Message:    "Refresh Token Generated Successfully",
+			Data: map[string]string{
+				"token":      newAccessToken,
+				"expires_at": fmt.Sprintf("%v", middleware.GetDuration().Seconds()),
+			},
+		}
+		// Set the token as a cookie
+		c.SetCookie("token", newAccessToken, int(middleware.GetDuration().Seconds()), "/", "", false, true)
+
+		c.JSON(http.StatusOK, response)
 	}
 }
 

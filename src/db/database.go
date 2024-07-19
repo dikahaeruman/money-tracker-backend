@@ -30,7 +30,7 @@ func ConnectDatabase() error {
 	dbname := os.Getenv("DATABASE_NAME")
 
 	// Connection string
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
 	// Connect to the database
