@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-contrib/cors"
+
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
@@ -32,6 +34,14 @@ func main() {
 	app := gin.Default()
 	mode := os.Getenv("APP_DEBUG")
 	fmt.Println("Gin mode:", mode)
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"PUT", "PATCH", "OPIONS", "GET", "POST", "DELETE"},
+		AllowHeaders:     []string{"Origin", "content-type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	if mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
