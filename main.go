@@ -10,6 +10,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
 	controller "money-tracker-backend/src/controller"
@@ -17,9 +18,18 @@ import (
 	middleware "money-tracker-backend/src/middleware"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_KEY"))
-
 func main() {
+
+	// Load environment variables from .env file
+	if os.Getenv("APP_ENV") != "production" {
+		if err := godotenv.Load(); err != nil {
+			fmt.Println("Error loading .env file:", err)
+			os.Exit(1) // Exit the program with non-zero status code indicating failure
+		}
+	}
+
+	// Continue with your application logic
+	fmt.Println("Environment variables loaded successfully!")
 
 	database.ConnectDatabase()
 	if err := sentry.Init(sentry.ClientOptions{
@@ -31,7 +41,14 @@ func main() {
 	}
 
 	db := database.GetDB()
+
 	app := gin.Default()
+
+	// Middleware to set jwtKey in context
+	jwtKey := middleware.GetJWTKey()
+
+	app.Use(KeyMiddleware(jwtKey))
+
 	mode := os.Getenv("APP_DEBUG")
 	fmt.Println("Gin mode:", mode)
 
@@ -55,15 +72,29 @@ func main() {
 		ctx.String(http.StatusOK, "Hello world!")
 	})
 
-	api := app.Group("/api")
-	{
-		api.POST("/login", controller.LoginHandler(db, jwtKey))
-		api.POST("/refresh", controller.RefreshTokenHandler(jwtKey))
-		api.POST("/logout", controller.LogoutHandler)
-		api.POST("/create-user", controller.CreateUserHandler(db))
-		api.GET("/users", middleware.JWTMiddleware(jwtKey), controller.AllUser(db))
-		api.POST("/search", middleware.JWTMiddleware(jwtKey), controller.SearchHandler(db))
-	}
+	// Public routes
+	app.POST("/api/login", controller.LoginHandler(db))
+	app.POST("/api/refresh", controller.RefreshTokenHandler)
+	app.POST("/api/logout", controller.LogoutHandler)
+	app.POST("/api/create-user", controller.CreateUserHandler(db))
+	app.GET("api/verify-token", controller.VerifyTokenHandler(jwtKey)) // New verification endpoint
 
-	app.Run(":8181")
+	// Protected routes
+	api := app.Group("/api", middleware.JWTMiddleware(jwtKey))
+	{
+		api.GET("/users", controller.AllUser(db))
+		api.POST("/search", controller.SearchHandler(db))
+	}
+	app.Run(":8282")
+}
+
+func KeyMiddleware(jwtKey string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if len(jwtKey) == 0 {
+			fmt.Println("JWT_KEY environment variable is not set or is empty in main")
+		}
+		// fmt.Printf("========= JWT_KEY is set: %v\n", jwtKey)
+		c.Set("jwtKey", jwtKey)
+		c.Next()
+	}
 }
