@@ -9,7 +9,6 @@ import (
 var DB *sql.DB // Exported global variable to hold the database connection
 
 func ConnectDatabase() error {
-
 	host := os.Getenv("DATABASE_HOST")
 	port := os.Getenv("DATABASE_PORT")
 	user := os.Getenv("DATABASE_USER")
