@@ -4,83 +4,192 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	middleware "money-tracker-backend/src/middleware"
 	models "money-tracker-backend/src/model"
+	util "money-tracker-backend/src/util"
 )
 
-// Credentials struct to handle email and password
 type Credentials struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-// LoginHandler handles the login request and generates JWT token
-func LoginHandler(dbInstance *sql.DB, jwtKey []byte) gin.HandlerFunc {
+func LoginHandler(dbInstance *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var creds Credentials
 		var user models.User
 
-		// Parse and validate JSON payload
-		if err := c.BindJSON(&creds); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		jwtKey, ok := util.GetStringFromContext(c, "jwtKey")
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT key not found or invalid type"})
 			return
 		}
 
-		// Query to search for user by email
+		if err := c.BindJSON(&creds); err != nil {
+			response := util.WriteResponse{
+				StatusCode: http.StatusBadRequest,
+				Message:    "Invalid request payload",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+
 		query := "SELECT id, username, password, email FROM users WHERE email = $1;"
-		fmt.Println("Executing query:", query, "with email:", creds.Email)
-		// Execute the query
 		err := dbInstance.QueryRow(query, creds.Email).Scan(&user.ID, &user.Username, &user.Password, &user.Email)
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusUnauthorized,
+				Message:    "Invalid email or password",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusUnauthorized, response)
 			return
 		} else if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Database error",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusInternalServerError, response)
 			return
 		}
 
-		// Compare the hashed password with the provided password
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password))
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			response := util.WriteResponse{
+				StatusCode: http.StatusUnauthorized,
+				Message:    "Invalid email or password",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusUnauthorized, response)
 			return
 		}
 
-		// Create the JWT token
-		expirationTime := time.Now().Add(5 * time.Minute)
-		claims := &middleware.Claims{
-			Email: creds.Email,
-			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: expirationTime.Unix(),
+		tokenString, err := middleware.CreateJWTToken(jwtKey, creds.Email)
+		if err != nil {
+			response := util.WriteResponse{
+				StatusCode: http.StatusInternalServerError,
+				Message:    "Could not generate token",
+				Data:       map[string]string{"error": err.Error()},
+			}
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+
+		c.SetCookie("token", tokenString, int(middleware.GetDuration().Seconds()), "/", "", false, true)
+
+		response := util.WriteResponse{
+			StatusCode: http.StatusOK,
+			Message:    "Login successful",
+			Data: map[string]string{
+				"token":      tokenString,
+				"expires_at": fmt.Sprintf("%v", middleware.GetDuration().Seconds()),
 			},
 		}
 
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenString, err := token.SignedString(jwtKey)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
-			return
-		}
-
-		// Set the token as a cookie
-		c.SetCookie("token", tokenString, int(expirationTime.Unix()), "/", "", false, true)
-
-		c.JSON(http.StatusOK, gin.H{"message": "Login successful", "token": tokenString})
+		c.JSON(http.StatusOK, response)
 	}
 }
 
-// LogoutHandler( handles user logout by clearing the JWT cookie
+func RefreshTokenHandler(c *gin.Context) {
+	var payload struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	jwtKey, ok := util.GetStringFromContext(c, "jwtKey")
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT key not found or invalid type"})
+		return
+	}
+
+	if err := c.BindJSON(&payload); err != nil {
+		fmt.Printf("check request: %v\n", payload)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	refreshTokenStr := payload.RefreshToken
+	if refreshTokenStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Refresh token is required"})
+		return
+	}
+
+	token, err := jwt.Parse(refreshTokenStr, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(jwtKey), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token claims"})
+		return
+	}
+
+	email, ok := claims["email"].(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email in token"})
+		return
+	}
+
+	newAccessToken, err := middleware.CreateJWTToken(jwtKey, email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate new access token"})
+		return
+	}
+
+	response := util.WriteResponse{
+		StatusCode: http.StatusOK,
+		Message:    "Refresh Token Generated Successfully",
+		Data: map[string]string{
+			"token":      newAccessToken,
+			"expires_at": fmt.Sprintf("%v", middleware.GetDuration().Seconds()),
+		},
+	}
+	c.SetCookie("token", newAccessToken, int(middleware.GetDuration().Seconds()), "/", "", false, true)
+
+	c.JSON(http.StatusOK, response)
+}
+
+func VerifyTokenHandler(jwtKey string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookie, err := c.Cookie("token")
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
+			return
+		}
+
+		claims, err := middleware.VerifyToken(cookie, jwtKey)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"claims": claims})
+	}
+}
+
 func LogoutHandler(c *gin.Context) {
-	// Clear the token cookie by setting it with an expired value
 	c.SetCookie("token", "", -1, "/", "", false, true)
 
-	// Respond to the client indicating the user is logged out
-	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+	response := util.WriteResponse{
+		StatusCode: http.StatusOK,
+		Message:    "Logout successful",
+		Data:       []interface{}{},
+	}
+
+	c.JSON(http.StatusOK, response)
 }
