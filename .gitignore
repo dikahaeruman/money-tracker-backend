@@ -18,3 +18,5 @@ go.work
 go.work.sum
 .env
 tmp/
+Makefile
+.idea/
