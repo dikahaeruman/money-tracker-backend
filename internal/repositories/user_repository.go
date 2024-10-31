@@ -52,9 +52,9 @@ func (r *UserRepository) FindAll() ([]models.User, error) {
 }
 
 func (r *UserRepository) FindByUsername(username string) (*models.User, error) {
-	query := "SELECT id, username, email FROM users WHERE username = $1"
+	query := "SELECT id, username, email, password, created_at, updated_at FROM users WHERE username = $1"
 	var user models.User
-	err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email)
+	err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

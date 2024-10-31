@@ -43,7 +43,7 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
-	accountRepo := repositories.NewAccountRepository(db)
+	accountRepo := repositories.NewAccountRepositoryPostgres(db)
 
 	// Initialize services
 	authService := services.NewService(userRepo)
@@ -60,20 +60,23 @@ func main() {
 	r := gin.Default()
 
 	// Define routes
-	r.POST("/api/auth/login", authController.Login)
-	r.POST("/api/auth/refresh", authController.RefreshToken)
-	r.POST("/api/auth/logout", authController.Logout)
-	r.POST("/api/users", userController.CreateUser)
-	r.GET("/api/users", userController.GetAllUsers)
-
 	api := r.Group("/api")
+
+	api.POST("/auth/login", authController.Login)
+	api.POST("/auth/refresh", authController.RefreshToken)
+	api.POST("/auth/logout", authController.Logout)
+	api.POST("/users", userController.CreateUser)
+	api.GET("/users", userController.GetAllUsers)
+
 	api.Use(auth.JWTMiddleware())
 	{
 		api.GET("/verify", authController.VerifyToken)
 		api.POST("/users/search", userController.SearchUser)
 		api.POST("/accounts", accountController.CreateAccount)
-		api.GET("/accounts/:user_id", accountController.GetAllAccounts)
-		api.GET("/accounts/:user_id/:account_id", accountController.GetAccount)
+		api.GET("/accounts/:account_id", accountController.GetAccountByID)
+		api.GET("/accounts/user/:user_id", accountController.GetAccountsByUserID)
+		api.PUT("/accounts/:account_id", accountController.UpdateAccount)
+		api.DELETE("/accounts/:account_id", accountController.DeleteAccount)
 		// Add other protected routes here
 	}
 
