@@ -61,24 +61,13 @@ func (accountController *AccountController) GetAccountsByUserID(c *gin.Context) 
 
 func (accountController *AccountController) UpdateAccount(c *gin.Context) {
 	accountId := c.Param("account_id")
-	var accountDTO dto.Account
 
+	var accountDTO dto.Account
 	if err := c.ShouldBindJSON(&accountDTO); err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
 		return
 	}
-	account, err := accountController.accountService.GetAccountByID(accountId)
-	if err != nil {
-		c.JSON(http.StatusNotFound, utils.ErrorResponse("Account not found"))
-		return
-	}
-
-	account.ID = accountId
-	account.AccountName = accountDTO.AccountName
-	account.Balance = accountDTO.Balance
-	account.Currency = accountDTO.Currency
-
-	updatedAccount, err := accountController.accountService.UpdateAccount(account)
+	updatedAccount, err := accountController.accountService.UpdateAccount(accountId, accountDTO)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to update account"))
 		return

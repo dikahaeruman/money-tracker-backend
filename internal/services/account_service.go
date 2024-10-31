@@ -1,34 +1,46 @@
 package services
 
 import (
+	"money-tracker-backend/internal/dto"
 	"money-tracker-backend/internal/models"
 	"money-tracker-backend/internal/repositories"
 )
 
 type AccountService struct {
-	accountRepo repositories.AccountRepository
+	accountRepository repositories.AccountRepository
 }
 
 func NewAccountService(accountRepo repositories.AccountRepository) *AccountService {
-	return &AccountService{accountRepo: accountRepo}
+	return &AccountService{accountRepository: accountRepo}
 }
 
 func (accountService *AccountService) CreateAccount(account *models.Account) (*models.Account, error) {
-	return accountService.accountRepo.CreateAccount(account)
+	return accountService.accountRepository.CreateAccount(account)
 }
 
 func (accountService *AccountService) GetAccountByID(accountId string) (*models.Account, error) {
-	return accountService.accountRepo.GetAccountByID(accountId)
+	return accountService.accountRepository.GetAccountByID(accountId)
 }
 
 func (accountService *AccountService) GetAccountsByUserID(userId int) ([]*models.Account, error) {
-	return accountService.accountRepo.GetAccountsByUserID(userId)
+	return accountService.accountRepository.GetAccountsByUserID(userId)
 }
 
-func (accountService *AccountService) UpdateAccount(account *models.Account) (*models.Account, error) {
-	return accountService.accountRepo.UpdateAccount(account)
+func (accountService *AccountService) UpdateAccount(accountId string, accountDTO dto.Account) (*models.Account, error) {
+	existingAccount, err := accountService.accountRepository.GetAccountByID(accountId)
+	if err != nil {
+		return nil, err
+	}
+	existingAccount.AccountName = accountDTO.AccountName
+	existingAccount.Balance = accountDTO.Balance
+	existingAccount.Currency = accountDTO.Currency
+	updatedAccount, err := accountService.accountRepository.UpdateAccount(existingAccount)
+	if err != nil {
+		return nil, err
+	}
+	return updatedAccount, nil
 }
 
 func (accountService *AccountService) DeleteAccount(accountID string) (string, error) {
-	return accountService.accountRepo.DeleteAccount(accountID)
+	return accountService.accountRepository.DeleteAccount(accountID)
 }
