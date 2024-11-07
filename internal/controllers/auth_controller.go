@@ -33,7 +33,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("token", token, int(utils.GetJWTDuration().Seconds()), "/", "", false, true)
+	c.SetCookie("token", token, int(utils.GetJWTDuration().Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, utils.SuccessResponse("Login successful", gin.H{
 		"token":      token,
 		"expires_at": utils.GetJWTDuration().Seconds(),
@@ -81,5 +81,11 @@ func (ac *AuthController) VerifyToken(c *gin.Context) {
 
 func (ac *AuthController) Logout(c *gin.Context) {
 	c.SetCookie("token", "", -1, "/", "", false, true)
+	c.Header("Clear-Site-Data", "\"cookies\"")
+	c.SetSameSite(http.SameSiteStrictMode)
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+
 	c.JSON(http.StatusOK, utils.SuccessResponse("Logout successful", nil))
 }

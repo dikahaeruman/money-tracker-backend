@@ -33,7 +33,7 @@ func (s *Service) Authenticate(email, password string) (string, error) {
 		return "", errors.New("invalid email or password")
 	}
 
-	return utils.CreateJWTToken(user.Email)
+	return utils.CreateJWTToken(user.Email, user.ID)
 }
 
 func (s *Service) RefreshToken(refreshToken string) (string, error) {
@@ -42,7 +42,7 @@ func (s *Service) RefreshToken(refreshToken string) (string, error) {
 		return "", err
 	}
 
-	return utils.CreateJWTToken(claims.Email)
+	return utils.CreateJWTToken(claims.Email, claims.UserID)
 }
 
 func (s *Service) VerifyToken(token string) (*utils.Claims, error) {

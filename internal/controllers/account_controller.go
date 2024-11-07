@@ -7,7 +7,6 @@ import (
 	"money-tracker-backend/internal/services"
 	"money-tracker-backend/internal/utils"
 	"net/http"
-	"strconv"
 )
 
 type AccountController struct {
@@ -19,11 +18,14 @@ func NewAccountController(accountService *services.AccountService) *AccountContr
 }
 
 func (accountController *AccountController) CreateAccount(c *gin.Context) {
+	userID, _ := c.Get("userID")
 	var account models.Account
 	if err := c.ShouldBindJSON(&account); err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
 		return
 	}
+
+	account.UserID = userID.(int)
 
 	createdAccount, err := accountController.accountService.CreateAccount(&account)
 	if err != nil {
@@ -47,10 +49,9 @@ func (accountController *AccountController) GetAccountByID(c *gin.Context) {
 	return
 }
 
-func (accountController *AccountController) GetAccountsByUserID(c *gin.Context) {
-	userIDString := c.Param("user_id")
-	userID, err := strconv.Atoi(userIDString)
-	accounts, err := accountController.accountService.GetAccountsByUserID(userID)
+func (accountController *AccountController) GetAccounts(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	accounts, err := accountController.accountService.GetAccounts(userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get all account"))
 		return

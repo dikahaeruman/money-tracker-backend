@@ -39,8 +39,9 @@ func (userController *UserController) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, utils.SuccessResponse("User created successfully", createdUser))
 }
 
-func (userController *UserController) GetAllUsers(c *gin.Context) {
-	users, err := userController.userService.GetAllUsers()
+func (userController *UserController) GetUser(c *gin.Context) {
+	email, _ := c.Get("email")
+	users, err := userController.userService.GetUser(email.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Error fetching users"))
 		return
@@ -51,14 +52,14 @@ func (userController *UserController) GetAllUsers(c *gin.Context) {
 
 func (userController *UserController) SearchUser(c *gin.Context) {
 	var payload struct {
-		Username string `json:"username"`
+		Email string `json:"email"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
 		return
 	}
 
-	user, err := userController.userService.SearchUserByUsername(payload.Username)
+	user, err := userController.userService.SearchByEmail(payload.Email)
 	if err != nil {
 		c.JSON(http.StatusNotFound, utils.ErrorResponse("User not found"))
 		return

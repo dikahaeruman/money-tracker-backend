@@ -22,7 +22,7 @@ func (accountService *AccountService) GetAccountByID(accountId string) (*models.
 	return accountService.accountRepository.GetAccountByID(accountId)
 }
 
-func (accountService *AccountService) GetAccountsByUserID(userId int) ([]*models.Account, error) {
+func (accountService *AccountService) GetAccounts(userId int) ([]*models.Account, error) {
 	return accountService.accountRepository.GetAccountsByUserID(userId)
 }
 

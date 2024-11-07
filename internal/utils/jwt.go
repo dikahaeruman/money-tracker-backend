@@ -8,7 +8,8 @@ import (
 )
 
 type Claims struct {
-	Email string `json:"email"`
+	Email  string `json:"email"`
+	UserID int    `json:"id"`
 	jwt.StandardClaims
 }
 
@@ -20,10 +21,11 @@ func GetJWTDuration() time.Duration {
 	return 15 * time.Minute
 }
 
-func CreateJWTToken(email string) (string, error) {
+func CreateJWTToken(email string, userID int) (string, error) {
 	expirationTime := time.Now().Add(GetJWTDuration())
 	claims := &Claims{
-		Email: email,
+		Email:  email,
+		UserID: userID,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},

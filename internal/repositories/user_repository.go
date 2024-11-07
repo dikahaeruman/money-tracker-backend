@@ -51,10 +51,10 @@ func (r *UserRepository) FindAll() ([]models.User, error) {
 	return users, nil
 }
 
-func (r *UserRepository) FindByUsername(username string) (*models.User, error) {
-	query := "SELECT id, username, email, password, created_at, updated_at FROM users WHERE username = $1"
+func (r *UserRepository) FindUserByEmail(email string) (*models.User, error) {
+	query := "SELECT id, username, email, created_at, updated_at FROM users WHERE email = $1"
 	var user models.User
-	err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +62,9 @@ func (r *UserRepository) FindByUsername(username string) (*models.User, error) {
 }
 
 func (r *UserRepository) FindPasswordByEmail(email string) (*models.User, error) {
-	query := "SELECT password FROM users WHERE email = $1"
+	query := "SELECT id, email,password FROM users WHERE email = $1"
 	var user models.User
-	err := r.db.QueryRow(query, email).Scan(&user.Password)
+	err := r.db.QueryRow(query, email).Scan(&user.ID, &user.Email, &user.Password)
 	if err != nil {
 		return nil, err
 	}

@@ -24,10 +24,10 @@ func (userService *UserService) CreateUser(user *models.User) (*models.User, err
 	return userService.userRepo.Create(user)
 }
 
-func (userService *UserService) GetAllUsers() ([]models.User, error) {
-	return userService.userRepo.FindAll()
+func (userService *UserService) GetUser(email string) (*models.User, error) {
+	return userService.userRepo.FindUserByEmail(email)
 }
 
-func (userService *UserService) SearchUserByUsername(username string) (*models.User, error) {
-	return userService.userRepo.FindByUsername(username)
+func (userService *UserService) SearchByEmail(username string) (*models.User, error) {
+	return userService.userRepo.FindUserByEmail(username)
 }
