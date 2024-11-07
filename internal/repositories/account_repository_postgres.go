@@ -1,52 +1,61 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+
 	"money-tracker-backend/internal/models"
 )
 
+// accountRepositoryPostgres implements AccountRepository interface
 type accountRepositoryPostgres struct {
 	db *sql.DB
 }
 
+// NewAccountRepositoryPostgres creates a new instance of accountRepositoryPostgres
 func NewAccountRepositoryPostgres(db *sql.DB) AccountRepository {
 	return &accountRepositoryPostgres{db: db}
 }
 
-func (r *accountRepositoryPostgres) CreateAccount(account *models.Account) (*models.Account, error) {
+// CreateAccount creates a new account in the database
+func (r *accountRepositoryPostgres) CreateAccount(ctx context.Context, account *models.Account) (*models.Account, error) {
 	query := `INSERT INTO accounts (user_id, account_name, balance, currency, created_at) 
-				VALUES ($1, $2, $3, $4, NOW()) 
-				RETURNING id, user_id, account_name, balance, currency, created_at`
-	err := r.db.QueryRow(query, account.UserID, account.AccountName, account.Balance, account.Currency).Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+                VALUES ($1, $2, $3, $4, NOW()) 
+                RETURNING id, user_id, account_name, balance, currency, created_at`
+	err := r.db.QueryRowContext(ctx, query, account.UserID, account.AccountName, account.Balance, account.Currency).
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return account, nil
 }
 
-func (r *accountRepositoryPostgres) GetAccountByID(accountID string) (*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE id = $1;`
+// GetAccountByID retrieves an account by its ID
+func (r *accountRepositoryPostgres) GetAccountByID(ctx context.Context, accountID string) (*models.Account, error) {
+	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE id = $1`
 	account := &models.Account{}
-	err := r.db.QueryRow(query, accountID).Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+	err := r.db.QueryRowContext(ctx, query, accountID).
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("account not found")
+		}
 		return nil, err
 	}
 	return account, nil
 }
 
-func (r *accountRepositoryPostgres) GetAccountsByUserID(userID int) ([]*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE user_id = $1;`
-	rows, err := r.db.Query(query, userID)
+// GetAccountsByUserID retrieves all accounts for a given user ID
+func (r *accountRepositoryPostgres) GetAccountsByUserID(ctx context.Context, userID int) ([]*models.Account, error) {
+	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE user_id = $1`
+	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}
-	defer func(rows *sql.Rows) {
-		err := rows.Close()
-		if err != nil {
+	defer rows.Close()
 
-		}
-	}(rows)
-	accounts := make([]*models.Account, 0)
+	var accounts []*models.Account
 	for rows.Next() {
 		account := &models.Account{}
 		err := rows.Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
@@ -55,34 +64,42 @@ func (r *accountRepositoryPostgres) GetAccountsByUserID(userID int) ([]*models.A
 		}
 		accounts = append(accounts, account)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
 	return accounts, nil
 }
 
-func (r *accountRepositoryPostgres) UpdateAccount(account *models.Account) (*models.Account, error) {
+// UpdateAccount updates an existing account in the database
+func (r *accountRepositoryPostgres) UpdateAccount(ctx context.Context, account *models.Account) (*models.Account, error) {
 	query := `UPDATE accounts 
-				SET account_name = $1, balance = $2, currency = $3 
-				WHERE id = $4 
-				RETURNING id, user_id, account_name, balance, currency, created_at;`
-	updatedAccount := &models.Account{}
-	err := r.db.QueryRow(query, account.AccountName, account.Balance, account.Currency, account.ID).Scan(
-		&updatedAccount.ID,
-		&updatedAccount.UserID,
-		&updatedAccount.AccountName,
-		&updatedAccount.Balance,
-		&updatedAccount.Currency,
-		&updatedAccount.CreatedAt)
+                SET account_name = $1, balance = $2, currency = $3 
+                WHERE id = $4 
+                RETURNING id, user_id, account_name, balance, currency, created_at`
+	err := r.db.QueryRowContext(ctx, query, account.AccountName, account.Balance, account.Currency, account.ID).
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("account not found")
+		}
 		return nil, err
 	}
 	return account, nil
 }
 
-func (r *accountRepositoryPostgres) DeleteAccount(accountID string) (string, error) {
-	query := `DELETE FROM accounts WHERE id = $1 RETURNING id;`
-	var deletedAccountID string
-	err := r.db.QueryRow(query, accountID).Scan(&deletedAccountID)
+// DeleteAccount removes an account from the database
+func (r *accountRepositoryPostgres) DeleteAccount(ctx context.Context, accountID string) error {
+	query := `DELETE FROM accounts WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, accountID)
 	if err != nil {
-		return `Error deleting accounts`, err
+		return err
 	}
-	return deletedAccountID, nil
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("account not found")
+	}
+	return nil
 }

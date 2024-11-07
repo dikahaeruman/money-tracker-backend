@@ -1,46 +1,78 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"money-tracker-backend/internal/dto"
 	"money-tracker-backend/internal/models"
 	"money-tracker-backend/internal/repositories"
 )
 
-type AccountService struct {
-	accountRepository repositories.AccountRepository
+// AccountService defines the interface for account-related operations
+type AccountService interface {
+	CreateAccount(ctx context.Context, account *models.Account) (*models.Account, error)
+	GetAccountByID(ctx context.Context, accountID string) (*models.Account, error)
+	GetAccounts(ctx context.Context, userID int) ([]*models.Account, error)
+	UpdateAccount(ctx context.Context, accountID string, accountDTO dto.Account) (*models.Account, error)
+	DeleteAccount(ctx context.Context, accountID string) error
 }
 
-func NewAccountService(accountRepo repositories.AccountRepository) *AccountService {
-	return &AccountService{accountRepository: accountRepo}
+// accountService implements the AccountService interface
+type accountService struct {
+	repo repositories.AccountRepository
 }
 
-func (accountService *AccountService) CreateAccount(account *models.Account) (*models.Account, error) {
-	return accountService.accountRepository.CreateAccount(account)
+// NewAccountService creates a new instance of AccountService
+func NewAccountService(repo repositories.AccountRepository) AccountService {
+	return &accountService{repo: repo}
 }
 
-func (accountService *AccountService) GetAccountByID(accountId string) (*models.Account, error) {
-	return accountService.accountRepository.GetAccountByID(accountId)
+// CreateAccount creates a new account
+func (s *accountService) CreateAccount(ctx context.Context, account *models.Account) (*models.Account, error) {
+	if account == nil {
+		return nil, errors.New("account cannot be nil")
+	}
+	return s.repo.CreateAccount(ctx, account)
 }
 
-func (accountService *AccountService) GetAccounts(userId int) ([]*models.Account, error) {
-	return accountService.accountRepository.GetAccountsByUserID(userId)
+// GetAccountByID retrieves an account by its ID
+func (s *accountService) GetAccountByID(ctx context.Context, accountID string) (*models.Account, error) {
+	if accountID == "" {
+		return nil, errors.New("account ID cannot be empty")
+	}
+	return s.repo.GetAccountByID(ctx, accountID)
 }
 
-func (accountService *AccountService) UpdateAccount(accountId string, accountDTO dto.Account) (*models.Account, error) {
-	existingAccount, err := accountService.accountRepository.GetAccountByID(accountId)
+// GetAccounts retrieves all accounts for a given user ID
+func (s *accountService) GetAccounts(ctx context.Context, userID int) ([]*models.Account, error) {
+	if userID <= 0 {
+		return nil, errors.New("invalid user ID")
+	}
+	return s.repo.GetAccountsByUserID(ctx, userID)
+}
+
+// UpdateAccount updates an existing account
+func (s *accountService) UpdateAccount(ctx context.Context, accountID string, accountDTO dto.Account) (*models.Account, error) {
+	if accountID == "" {
+		return nil, errors.New("account ID cannot be empty")
+	}
+
+	existingAccount, err := s.repo.GetAccountByID(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
+
 	existingAccount.AccountName = accountDTO.AccountName
 	existingAccount.Balance = accountDTO.Balance
 	existingAccount.Currency = accountDTO.Currency
-	updatedAccount, err := accountService.accountRepository.UpdateAccount(existingAccount)
-	if err != nil {
-		return nil, err
-	}
-	return updatedAccount, nil
+
+	return s.repo.UpdateAccount(ctx, existingAccount)
 }
 
-func (accountService *AccountService) DeleteAccount(accountID string) (string, error) {
-	return accountService.accountRepository.DeleteAccount(accountID)
+// DeleteAccount deletes an account by its ID
+func (s *accountService) DeleteAccount(ctx context.Context, accountID string) error {
+	if accountID == "" {
+		return errors.New("account ID cannot be empty")
+	}
+	return s.repo.DeleteAccount(ctx, accountID)
 }
