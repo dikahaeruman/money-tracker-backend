@@ -26,17 +26,41 @@ func (ac *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := ac.service.Authenticate(credentials.Email, credentials.Password)
+	// Authenticate user and get tokens
+	token, refreshToken, err := ac.service.Authenticate(credentials.Email, credentials.Password)
 	if err != nil {
 		log.Print(err)
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("Invalid email or password"))
 		return
 	}
 
-	c.SetCookie("token", token, int(utils.GetJWTDuration().Seconds()), "/", "", true, true)
+	log.Printf("Token: %s, Refresh token: %s", token, refreshToken)
+
+	// Get durations and handle errors
+	jwtDuration, err := utils.GetJWTDuration()
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Could not get token duration"))
+		return
+	}
+
+	refreshDuration, err := utils.GetRefreshDuration()
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Could not get refresh token duration"))
+		return
+	}
+
+	log.Printf("Token: %s, Refresh token: %s", token, refreshToken)
+
+	// Set cookies with correct expiration
+	c.SetCookie("token", token, int(jwtDuration.Seconds()), "/", "", true, true)
+	c.SetCookie("refresh_token", refreshToken, int(refreshDuration.Seconds()), "/", "", true, true)
+
+	// Respond with success
 	c.JSON(http.StatusOK, utils.SuccessResponse("Login successful", gin.H{
-		"token":      token,
-		"expires_at": utils.GetJWTDuration().Seconds(),
+		"token":         token,
+		"refresh_token": refreshToken,
 	}))
 }
 
@@ -56,10 +80,24 @@ func (ac *AuthController) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("token", newToken, int(utils.GetJWTDuration().Seconds()), "/", "", false, true)
+	jwtDuration, err := utils.GetJWTDuration()
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Could not get token duration"))
+		return
+	}
+
+	refreshDuration, err := utils.GetRefreshDuration()
+	if err != nil {
+		log.Print(err)
+		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Could not get refresh token duration"))
+		return
+	}
+
+	c.SetCookie("token", newToken, int(refreshDuration.Seconds()), "/", "", false, true)
 	c.JSON(http.StatusOK, utils.SuccessResponse("Token refreshed successfully", gin.H{
 		"token":      newToken,
-		"expires_at": utils.GetJWTDuration().Seconds(),
+		"expires_at": jwtDuration.Seconds(),
 	}))
 }
 

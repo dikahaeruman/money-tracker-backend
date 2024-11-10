@@ -14,13 +14,14 @@ func InitDB() (*sql.DB, error) {
 	user := os.Getenv("DATABASE_USER")
 	password := os.Getenv("DATABASE_PASSWORD")
 	dbname := os.Getenv("DATABASE_NAME")
+	sslmode := os.Getenv("DATABASE_SSL_MODE")
 
-	if host == "" || port == "" || user == "" || password == "" || dbname == "" {
+	if host == "" || port == "" || user == "" || password == "" || dbname == "" || sslmode == "" {
 		return nil, fmt.Errorf("missing required database environment variables")
 	}
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
-		host, port, user, password, dbname)
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		host, port, user, password, dbname, sslmode)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {

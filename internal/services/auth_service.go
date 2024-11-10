@@ -17,23 +17,34 @@ func NewService(userRepo *repositories.UserRepository) *Service {
 	return &Service{userRepo: userRepo}
 }
 
-func (s *Service) Authenticate(email, password string) (string, error) {
+func (s *Service) Authenticate(email, password string) (string, string, error) { // Updated return type
 	user, err := s.userRepo.FindPasswordByEmail(email)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	match, err := utils.CheckPasswordHash([]byte(user.Password), password)
 	if err != nil {
 		log.Printf("Error checking password: %v", err)
-		return "", err
+		return "", "", err
 	}
 	if !match {
 		log.Printf("Invalid password for user: %s", email)
-		return "", errors.New("invalid email or password")
+		return "", "", errors.New("invalid email or password")
 	}
 
-	return utils.CreateJWTToken(user.Email, user.ID)
+	jwtToken, err := utils.CreateJWTToken(user.Email, user.ID)
+	if err != nil {
+		log.Printf("Error creating JWT token: %v", err)
+		return "", "", err
+	}
+	refreshToken, err := utils.CreateRefreshToken(user.Email, user.ID) // Ensure this line is correct
+	if err != nil {
+		log.Printf("Error creating refresh token: %v", err)
+		return "", "", err
+	}
+
+	return jwtToken, refreshToken, nil // Updated return statement
 }
 
 func (s *Service) RefreshToken(refreshToken string) (string, error) {

@@ -1,5 +1,18 @@
-# air.toml
+# Filename: air.toml
+
+# Root directory of the application
 root = "."
+
+# Temporary directory for compiled builds
 tmp_dir = "tmp"
-build_cmd = "go build -o ./tmp/main ."
-run_cmd = "./tmp/main"
+
+# Build command to compile the application
+build_cmd = "go build -o tmp/main ./cmd/main.go"
+
+# Run command to start the application
+cmd = "./tmp/main"
+
+# Watch patterns (optional)
+[watch]
+full_reload = false  # Set to true if you need full reload on every change
+delve = false
