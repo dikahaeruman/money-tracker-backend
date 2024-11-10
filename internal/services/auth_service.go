@@ -52,7 +52,8 @@ func (s *Service) RefreshToken(refreshToken string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
+	log.Printf("Refresh token: %s", refreshToken)
+	log.Printf("Claims: %v", claims)
 	return utils.CreateJWTToken(claims.Email, claims.UserID)
 }
 
