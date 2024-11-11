@@ -46,16 +46,19 @@ func main() {
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
 	accountRepo := repositories.NewAccountRepositoryPostgres(db)
+	transactionRepo := repositories.NewTransactionRepositoryImpl(db)
 
 	// Initialize services
 	authService := services.NewService(userRepo)
 	userService := services.NewUserService(userRepo)
 	accountService := services.NewAccountService(accountRepo)
+	transactionService := services.NewTransactionService(transactionRepo, accountService)
 
 	// Initialize controllers
 	authController := controllers.NewAuthController(authService)
 	userController := controllers.NewUserController(userService)
 	accountController := controllers.NewAccountController(accountService)
+	transactionController := controllers.NewTransactionController(transactionService)
 
 	// Set up Gin router
 	gin.SetMode("debug")
@@ -93,6 +96,7 @@ func main() {
 		api.GET("/accounts/:account_id", accountController.GetAccountByID)
 		api.PUT("/accounts/:account_id", accountController.UpdateAccount)
 		api.DELETE("/accounts/:account_id", accountController.DeleteAccount)
+		api.POST("/transactions", transactionController.CreateTransaction)
 		// Add other protected routes here
 	}
 

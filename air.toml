@@ -1,5 +1,5 @@
 # air.toml
 root = "."
 tmp_dir = "tmp"
-build_cmd = "go build -o ./tmp/main ."
+build_cmd = "go build ./cmd/main.go"
 run_cmd = "./tmp/main"
