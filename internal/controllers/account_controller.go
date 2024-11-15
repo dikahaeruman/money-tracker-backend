@@ -6,18 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"money-tracker-backend/internal/dto"
+	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
-	"money-tracker-backend/internal/services"
 	"money-tracker-backend/internal/utils"
 )
 
 // AccountController handles HTTP requests related to accounts
 type AccountController struct {
-	accountService services.AccountService
+	accountService interfaces.AccountServiceInterface
 }
 
 // NewAccountController creates a new instance of AccountController
-func NewAccountController(accountService services.AccountService) *AccountController {
+func NewAccountController(accountService interfaces.AccountServiceInterface) interfaces.AccountControllerInterface {
 	return &AccountController{accountService: accountService}
 }
 
@@ -36,6 +36,11 @@ func (ac *AccountController) CreateAccount(c *gin.Context) {
 	}
 
 	account.UserID = userID.(int)
+
+	if err := account.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
+		return
+	}
 
 	createdAccount, err := ac.accountService.CreateAccount(c.Request.Context(), &account)
 	if err != nil {

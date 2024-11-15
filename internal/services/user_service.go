@@ -1,6 +1,7 @@
 package services
 
 import (
+	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
 	"money-tracker-backend/internal/repositories"
 	"money-tracker-backend/internal/utils"
@@ -10,7 +11,7 @@ type UserService struct {
 	userRepo *repositories.UserRepository
 }
 
-func NewUserService(userRepo *repositories.UserRepository) *UserService {
+func NewUserService(userRepo *repositories.UserRepository) interfaces.UserServiceInterface {
 	return &UserService{userRepo: userRepo}
 }
 

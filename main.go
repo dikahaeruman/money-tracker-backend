@@ -45,10 +45,10 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
-	accountRepo := repositories.NewAccountRepositoryPostgres(db)
+	accountRepo := repositories.NewAccountRepository(db)
 
 	// Initialize services
-	authService := services.NewService(userRepo)
+	authService := services.NewAuthService(userRepo)
 	userService := services.NewUserService(userRepo)
 	accountService := services.NewAccountService(accountRepo)
 
@@ -102,7 +102,7 @@ func main() {
 		port = "8080"
 	}
 	log.Printf("Server starting on port %s", port)
-	if err := r.Run(":" + port); err != nil {
+	if err := r.Run("localhost:" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

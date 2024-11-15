@@ -2,20 +2,20 @@ package controllers
 
 import (
 	"log"
-	"money-tracker-backend/internal/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
+	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
 	"money-tracker-backend/internal/utils"
 )
 
 type AuthController struct {
-	service *services.Service
+	service interfaces.AuthServiceInterface
 }
 
-func NewAuthController(service *services.Service) *AuthController {
+func NewAuthController(service interfaces.AuthServiceInterface) interfaces.AuthControllerInterface {
 	return &AuthController{service: service}
 }
 

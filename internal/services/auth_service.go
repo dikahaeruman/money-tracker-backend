@@ -9,15 +9,16 @@ import (
 	"money-tracker-backend/internal/utils"
 )
 
-type Service struct {
+type AuthService struct {
 	userRepo *repositories.UserRepository
 }
 
-func NewService(userRepo *repositories.UserRepository) *Service {
-	return &Service{userRepo: userRepo}
+// NewAuthService creates a new AuthService instance
+func NewAuthService(userRepo *repositories.UserRepository) *AuthService {
+	return &AuthService{userRepo: userRepo}
 }
 
-func (s *Service) Authenticate(email, password string) (string, string, error) { // Updated return type
+func (s *AuthService) Authenticate(email, password string) (string, string, error) { // Updated return type
 	user, err := s.userRepo.FindPasswordByEmail(email)
 	if err != nil {
 		return "", "", err
@@ -47,7 +48,7 @@ func (s *Service) Authenticate(email, password string) (string, string, error) {
 	return jwtToken, refreshToken, nil // Updated return statement
 }
 
-func (s *Service) RefreshToken(refreshToken string) (string, error) {
+func (s *AuthService) RefreshToken(refreshToken string) (string, error) {
 	claims, err := utils.VerifyToken(refreshToken)
 	if err != nil {
 		return "", err
@@ -57,6 +58,6 @@ func (s *Service) RefreshToken(refreshToken string) (string, error) {
 	return utils.CreateJWTToken(claims.Email, claims.UserID)
 }
 
-func (s *Service) VerifyToken(token string) (*utils.Claims, error) {
+func (s *AuthService) VerifyToken(token string) (*utils.Claims, error) {
 	return utils.VerifyToken(token)
 }

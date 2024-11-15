@@ -5,23 +5,29 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
-	"money-tracker-backend/internal/services"
 	"money-tracker-backend/internal/utils"
 )
 
 type UserController struct {
-	userService *services.UserService
+	userService interfaces.UserServiceInterface
 }
 
-func NewUserController(userService *services.UserService) *UserController {
+func NewUserController(userService interfaces.UserServiceInterface) interfaces.UserControllerInterface {
 	return &UserController{userService: userService}
 }
 
 func (userController *UserController) CreateUser(c *gin.Context) {
 	var user models.User
+
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
+		return
+	}
+
+	if err := user.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
 
