@@ -31,12 +31,12 @@ func (r *accountRepository) CreateAccount(ctx context.Context, account *models.A
 		return nil, fmt.Errorf("account with name %s already exists", account.AccountName)
 	}
 
-	query := `INSERT INTO accounts (user_id, account_name, balance, currency, created_at) 
+	query := `INSERT INTO accounts (user_id, account_name, balance, currency_id, created_at) 
                 VALUES ($1, $2, $3, $4, NOW()) 
-                RETURNING id, user_id, account_name, balance, currency, created_at`
+                RETURNING id, user_id, account_name, balance, currency_id, created_at`
 
-	err = r.db.QueryRowContext(ctx, query, account.UserID, account.AccountName, account.Balance, account.Currency).
-		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+	err = r.db.QueryRowContext(ctx, query, account.UserID, account.AccountName, account.Balance, account.CurrencyID).
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -45,10 +45,10 @@ func (r *accountRepository) CreateAccount(ctx context.Context, account *models.A
 
 // GetAccountByID retrieves an account by its ID
 func (r *accountRepository) GetAccountByID(ctx context.Context, accountID string) (*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE id = $1`
+	query := `SELECT id, user_id, account_name, balance, currency_id, created_at FROM accounts WHERE id = $1`
 	account := &models.Account{}
 	err := r.db.QueryRowContext(ctx, query, accountID).
-		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("account not found")
@@ -60,7 +60,7 @@ func (r *accountRepository) GetAccountByID(ctx context.Context, accountID string
 
 // GetAccountsByUserID retrieves all accounts for a given user ID
 func (r *accountRepository) GetAccountsByUserID(ctx context.Context, userID int) ([]*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE user_id = $1`
+	query := `SELECT id, user_id, account_name, balance, currency_id, created_at FROM accounts WHERE user_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (r *accountRepository) GetAccountsByUserID(ctx context.Context, userID int)
 	var accounts []*models.Account
 	for rows.Next() {
 		account := &models.Account{}
-		err := rows.Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+		err := rows.Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func (r *accountRepository) GetAccountByName(ctx context.Context, accountName st
 	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE account_name = $1`
 	account := &models.Account{}
 	err := r.db.QueryRowContext(ctx, query, accountName).
-		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +100,8 @@ func (r *accountRepository) UpdateAccount(ctx context.Context, account *models.A
                 SET account_name = $1, balance = $2, currency = $3 
                 WHERE id = $4 
                 RETURNING id, user_id, account_name, balance, currency, created_at`
-	err := r.db.QueryRowContext(ctx, query, account.AccountName, account.Balance, account.Currency, account.ID).
-		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
+	err := r.db.QueryRowContext(ctx, query, account.AccountName, account.Balance, account.CurrencyID, account.ID).
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("account not found")

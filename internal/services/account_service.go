@@ -55,7 +55,7 @@ func (s *AccountService) UpdateAccount(ctx context.Context, accountID string, ac
 
 	existingAccount.AccountName = accountDTO.AccountName
 	existingAccount.Balance = accountDTO.Balance
-	existingAccount.Currency = accountDTO.Currency
+	existingAccount.CurrencyID = accountDTO.CurrencyID
 
 	return s.repo.UpdateAccount(ctx, existingAccount)
 }

@@ -10,7 +10,7 @@ type Account struct {
 	UserID      int       `json:"user_id"`
 	AccountName string    `json:"account_name"`
 	Balance     float64   `json:"balance"`
-	Currency    string    `json:"currency"`
+	CurrencyID  int       `json:"currency"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -25,7 +25,7 @@ func (a *Account) Validate() error {
 	if a.Balance < 0 {
 		return errors.New("balance cannot be negative")
 	}
-	if a.Currency == "" {
+	if a.CurrencyID <= 0 {
 		return errors.New("currency is required")
 	}
 	return nil
