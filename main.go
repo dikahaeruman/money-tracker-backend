@@ -39,9 +39,9 @@ func main() {
 		}
 	}(db)
 
-	// if err := runMigrations(db); err != nil {
-	// 	log.Fatalf("Failed to run migrations: %v", err)
-	// }
+	if err := runMigrations(db); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
@@ -87,7 +87,6 @@ func main() {
 	{
 		api.GET("/verify", authController.VerifyToken)
 		api.GET("/users", userController.GetUser)
-		api.POST("/users/search", userController.SearchUser)
 		api.POST("/accounts", accountController.CreateAccount)
 		api.GET("/accounts/", accountController.GetAccounts)
 		api.GET("/accounts/:account_id", accountController.GetAccountByID)

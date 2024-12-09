@@ -89,9 +89,6 @@ func (r *accountRepository) GetAccountByName(ctx context.Context, accountName st
 	err := r.db.QueryRowContext(ctx, query, accountName).
 		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.Currency, &account.CreatedAt)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("account not found")
-		}
 		return nil, err
 	}
 	return account, nil

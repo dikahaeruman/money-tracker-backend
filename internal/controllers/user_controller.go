@@ -55,21 +55,3 @@ func (userController *UserController) GetUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, utils.SuccessResponse("Users retrieved successfully", users))
 }
-
-func (userController *UserController) SearchUser(c *gin.Context) {
-	var payload struct {
-		Email string `json:"email"`
-	}
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
-		return
-	}
-
-	user, err := userController.userService.SearchByEmail(payload.Email)
-	if err != nil {
-		c.JSON(http.StatusNotFound, utils.ErrorResponse("User not found"))
-		return
-	}
-
-	c.JSON(http.StatusOK, utils.SuccessResponse("User found", user))
-}
