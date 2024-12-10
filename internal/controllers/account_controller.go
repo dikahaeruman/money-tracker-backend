@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -44,6 +45,7 @@ func (ac *AccountController) CreateAccount(c *gin.Context) {
 
 	createdAccount, err := ac.accountService.CreateAccount(c.Request.Context(), &account)
 	if err != nil {
+		fmt.Println("error on create controller: ", err)
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to create account"))
 		return
 	}

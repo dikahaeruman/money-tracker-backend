@@ -6,6 +6,7 @@ import (
 	"money-tracker-backend/internal/dto"
 	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
+	"money-tracker-backend/internal/utils"
 )
 
 // accountService implements the AccountService interface
@@ -39,7 +40,17 @@ func (s *AccountService) GetAccounts(ctx context.Context, userID int) ([]*models
 	if userID <= 0 {
 		return nil, errors.New("invalid user ID")
 	}
-	return s.repo.GetAccountsByUserID(ctx, userID)
+	accounts, _ := s.repo.GetAccountsByUserID(ctx, userID)
+	for _, account := range accounts {
+		if account.CurrencyCode != "IDR" {
+			apiResponse, err := utils.GetLatestCurrencyRate(account.CurrencyCode)
+			if err != nil {
+				return nil, err
+			}
+			account.ConvertedBalance = apiResponse.Data.Mid * account.Balance
+		}
+	}
+	return accounts, nil
 }
 
 // UpdateAccount updates an existing account

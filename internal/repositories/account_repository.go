@@ -24,6 +24,7 @@ func (r *accountRepository) CreateAccount(ctx context.Context, account *models.A
 	existingAccount, err := r.GetAccountByName(ctx, account.AccountName)
 	if err != nil && err != sql.ErrNoRows {
 		// If the error is due to a database error, handle it
+		fmt.Println("error on get: ", err)
 		return nil, err
 	}
 
@@ -38,6 +39,7 @@ func (r *accountRepository) CreateAccount(ctx context.Context, account *models.A
 	err = r.db.QueryRowContext(ctx, query, account.UserID, account.AccountName, account.Balance, account.CurrencyID).
 		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 	if err != nil {
+		fmt.Println("error on insert: ", err)
 		return nil, err
 	}
 	return account, nil
@@ -60,9 +62,24 @@ func (r *accountRepository) GetAccountByID(ctx context.Context, accountID string
 
 // GetAccountsByUserID retrieves all accounts for a given user ID
 func (r *accountRepository) GetAccountsByUserID(ctx context.Context, userID int) ([]*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency_id, created_at FROM accounts WHERE user_id = $1`
+	fmt.Println("success get accounts id!: ", userID)
+
+	query := `SELECT 
+					accounts.id, 
+					accounts.user_id, 
+					accounts.account_name, 
+					accounts.balance, 
+					accounts.currency_id,
+					currencies.currency_code,
+					accounts.created_at,
+					accounts.updated_at
+				FROM
+					accounts
+				JOIN currencies on accounts.currency_id = currencies.id
+				WHERE user_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
+		fmt.Println("error get accounts id!: ", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -70,21 +87,37 @@ func (r *accountRepository) GetAccountsByUserID(ctx context.Context, userID int)
 	var accounts []*models.Account
 	for rows.Next() {
 		account := &models.Account{}
-		err := rows.Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
+		currency := &models.Currency{}
+		err := rows.Scan(
+			&account.ID,
+			&account.UserID,
+			&account.AccountName,
+			&account.Balance,
+			&account.CurrencyID,
+			&currency.Code,
+			&account.CreatedAt,
+			&account.UpdatedAt,
+		)
 		if err != nil {
+			fmt.Println("error get accounts!: ", err)
 			return nil, err
 		}
+		account.CurrencyCode = currency.Code
+		fmt.Println("success get accounts!: ", account)
 		accounts = append(accounts, account)
 	}
+
 	if err = rows.Err(); err != nil {
+		fmt.Println("error get accountssssss!: ", err)
 		return nil, err
 	}
+
 	return accounts, nil
 }
 
 // GetAccountByName retrieves an account by its name
 func (r *accountRepository) GetAccountByName(ctx context.Context, accountName string) (*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency, created_at FROM accounts WHERE account_name = $1`
+	query := `SELECT id, user_id, account_name, balance, currency_id, created_at FROM accounts WHERE account_name = $1`
 	account := &models.Account{}
 	err := r.db.QueryRowContext(ctx, query, accountName).
 		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
@@ -97,9 +130,9 @@ func (r *accountRepository) GetAccountByName(ctx context.Context, accountName st
 // UpdateAccount updates an existing account in the database
 func (r *accountRepository) UpdateAccount(ctx context.Context, account *models.Account) (*models.Account, error) {
 	query := `UPDATE accounts 
-                SET account_name = $1, balance = $2, currency = $3 
+                SET account_name = $1, balance = $2, currency_id = $3 
                 WHERE id = $4 
-                RETURNING id, user_id, account_name, balance, currency, created_at`
+                RETURNING id, user_id, account_name, balance, currency_id, created_at`
 	err := r.db.QueryRowContext(ctx, query, account.AccountName, account.Balance, account.CurrencyID, account.ID).
 		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
 	if err != nil {
