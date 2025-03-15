@@ -17,5 +17,4 @@ type UserServiceInterface interface {
 type UserControllerInterface interface {
 	CreateUser(c *gin.Context)
 	GetUser(c *gin.Context)
-	SearchUser(c *gin.Context)
 }

@@ -1,8 +1,8 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"money-tracker-backend/internal/dto"
@@ -21,29 +21,40 @@ func NewAccountController(accountService interfaces.AccountServiceInterface) int
 	return &AccountController{accountService: accountService}
 }
 
-// CreateAccount handles the creation of a new account
 func (ac *AccountController) CreateAccount(c *gin.Context) {
+	// Get userID from context
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
 		return
 	}
 
-	var account models.Account
-	if err := c.ShouldBindJSON(&account); err != nil {
+	// Bind JSON to DTO
+	var payload dto.Account
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		fmt.Println("JSON Bind Error:", err)
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
 		return
 	}
 
-	account.UserID = userID.(int)
+	// Map DTO to Account model
+	account := models.Account{
+		UserID:      userID.(int),
+		AccountName: payload.AccountName,
+		Balance:     payload.Balance,
+		CurrencyID:  payload.CurrencyID,
+	}
 
+	// Validate account model
 	if err := account.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
 		return
 	}
 
+	// Create account
 	createdAccount, err := ac.accountService.CreateAccount(c.Request.Context(), &account)
 	if err != nil {
+		fmt.Println("Error creating account:", err)
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to create account"))
 		return
 	}
