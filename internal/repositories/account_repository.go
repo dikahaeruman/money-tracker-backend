@@ -47,10 +47,10 @@ func (r *accountRepository) CreateAccount(ctx context.Context, account *models.A
 
 // GetAccountByID retrieves an account by its ID
 func (r *accountRepository) GetAccountByID(ctx context.Context, accountID string) (*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency_id, created_at FROM accounts WHERE id = $1`
+	query := `SELECT id, user_id, account_name, balance, currency_id, created_at, updated_at FROM accounts WHERE id = $1`
 	account := &models.Account{}
 	err := r.db.QueryRowContext(ctx, query, accountID).
-		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt, &account.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("account not found")
