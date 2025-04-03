@@ -81,13 +81,13 @@ func (ac *AccountController) GetAccounts(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
 		return
 	}
-
+	log.Printf("User ID from context: %v", userID)
 	accounts, err := ac.accountService.GetAccounts(c.Request.Context(), userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get accounts"))
 		return
 	}
-
+	log.Printf("Retrieved accounts: %+v", accounts)
 	c.JSON(http.StatusOK, utils.SuccessResponse("Accounts retrieved successfully", accounts))
 }
 

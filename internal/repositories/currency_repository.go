@@ -20,6 +20,7 @@ func (r *currencyRepository) GetCurrency(ctx context.Context) ([]*models.Currenc
 	query := "SELECT id, currency_code, currency_name FROM currencies"
 	rows, err := r.db.Query(query)
 	if err != nil {
+		log.Printf("Failed to execute query: %v", err)
 		return nil, err
 	}
 	defer func(rows *sql.Rows) {

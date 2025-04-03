@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
 	"money-tracker-backend/internal/utils"
@@ -19,6 +20,7 @@ func NewCurrencyController(currencyService interfaces.CurrencyServiceInterface) 
 
 func (c *CurrencyController) GetCurrency(ctx *gin.Context) {
 	currencies, err := c.currencyService.GetCurrency(ctx.Request.Context())
+	fmt.Println("Currencies: ", currencies)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get currencies"))
 		return
