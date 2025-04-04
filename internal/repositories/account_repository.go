@@ -47,10 +47,10 @@ func (r *accountRepository) CreateAccount(ctx context.Context, account *models.A
 
 // GetAccountByID retrieves an account by its ID
 func (r *accountRepository) GetAccountByID(ctx context.Context, accountID string) (*models.Account, error) {
-	query := `SELECT id, user_id, account_name, balance, currency_id, created_at FROM accounts WHERE id = $1`
+	query := `SELECT id, user_id, account_name, balance, currency_id, created_at, updated_at FROM accounts WHERE id = $1`
 	account := &models.Account{}
 	err := r.db.QueryRowContext(ctx, query, accountID).
-		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt)
+		Scan(&account.ID, &account.UserID, &account.AccountName, &account.Balance, &account.CurrencyID, &account.CreatedAt, &account.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("account not found")
@@ -77,9 +77,18 @@ func (r *accountRepository) GetAccountsByUserID(ctx context.Context, userID int)
 					accounts
 				JOIN currencies on accounts.currency_id = currencies.id
 				WHERE user_id = $1`
-	rows, err := r.db.QueryContext(ctx, query, userID)
+
+	// Use a prepared statement for better query handling
+	stmt, err := r.db.PrepareContext(ctx, query)
 	if err != nil {
-		fmt.Println("error get accounts id!: ", err)
+		fmt.Println("error preparing query: ", err)
+		return nil, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx, userID)
+	if err != nil {
+		fmt.Println("error executing query: ", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -99,16 +108,17 @@ func (r *accountRepository) GetAccountsByUserID(ctx context.Context, userID int)
 			&account.UpdatedAt,
 		)
 		if err != nil {
-			fmt.Println("error get accounts!: ", err)
+			fmt.Println("error scanning row: ", err)
 			return nil, err
 		}
 		account.CurrencyCode = currency.Code
-		fmt.Println("success get accounts!: ", account)
+		fmt.Println("success get account: ", account)
 		accounts = append(accounts, account)
 	}
 
+	// Check for errors from rows.Next()
 	if err = rows.Err(); err != nil {
-		fmt.Println("error get accountssssss!: ", err)
+		fmt.Println("error with rows iteration: ", err)
 		return nil, err
 	}
 

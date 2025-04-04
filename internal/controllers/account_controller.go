@@ -1,10 +1,11 @@
 package controllers
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"github.com/gin-gonic/gin"
-
+	"github.com/go-playground/validator/v10"
+	
 	"money-tracker-backend/internal/dto"
 	"money-tracker-backend/internal/interfaces"
 	"money-tracker-backend/internal/models"
@@ -14,52 +15,50 @@ import (
 // AccountController handles HTTP requests related to accounts
 type AccountController struct {
 	accountService interfaces.AccountServiceInterface
+	validate       *validator.Validate
 }
 
 // NewAccountController creates a new instance of AccountController
 func NewAccountController(accountService interfaces.AccountServiceInterface) interfaces.AccountControllerInterface {
-	return &AccountController{accountService: accountService}
+	return &AccountController{
+		accountService: accountService, 		
+		validate:       validator.New(),
+	}
 }
 
 func (ac *AccountController) CreateAccount(c *gin.Context) {
-	// Get userID from context
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
-		return
-	}
+    userID, exists := c.Get("userID")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
+        return
+    }
 
-	// Bind JSON to DTO
-	var payload dto.Account
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		fmt.Println("JSON Bind Error:", err)
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request payload"))
-		return
-	}
+    var payload dto.Account
+    if err := c.ShouldBindJSON(&payload); err != nil {
+        log.Printf("Error binding JSON: %v", err)
+        c.JSON(http.StatusBadRequest, utils.ErrorResponse("Invalid request format: please check all required fields"))
+        return
+    }
 
-	// Map DTO to Account model
-	account := models.Account{
-		UserID:      userID.(int),
-		AccountName: payload.AccountName,
-		Balance:     payload.Balance,
-		CurrencyID:  payload.CurrencyID,
-	}
+    log.Printf("Received valid payload: %+v", payload)
 
-	// Validate account model
-	if err := account.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, utils.ErrorResponse(err.Error()))
-		return
-	}
+    account := models.Account{
+        UserID:      userID.(int),
+        AccountName: payload.AccountName,
+        Balance:     payload.Balance,
+        CurrencyID:  payload.CurrencyID,
+    }
 
-	// Create account
-	createdAccount, err := ac.accountService.CreateAccount(c.Request.Context(), &account)
-	if err != nil {
-		fmt.Println("Error creating account:", err)
-		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to create account"))
-		return
-	}
+    log.Printf("Creating account with data: %+v", account)
 
-	c.JSON(http.StatusCreated, utils.SuccessResponse("Account created successfully", createdAccount))
+    createdAccount, err := ac.accountService.CreateAccount(c.Request.Context(), &account)
+    if err != nil {
+        log.Printf("Error creating account: %v", err)
+        c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to create account"))
+        return
+    }
+
+    c.JSON(http.StatusCreated, utils.SuccessResponse("Account created successfully", createdAccount))
 }
 
 // GetAccountByID retrieves an account by its ID
@@ -82,13 +81,13 @@ func (ac *AccountController) GetAccounts(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, utils.ErrorResponse("User not authenticated"))
 		return
 	}
-
+	log.Printf("User ID from context: %v", userID)
 	accounts, err := ac.accountService.GetAccounts(c.Request.Context(), userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, utils.ErrorResponse("Failed to get accounts"))
 		return
 	}
-
+	log.Printf("Retrieved accounts: %+v", accounts)
 	c.JSON(http.StatusOK, utils.SuccessResponse("Accounts retrieved successfully", accounts))
 }
 

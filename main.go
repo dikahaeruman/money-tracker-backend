@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -24,10 +25,12 @@ import (
 )
 
 func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	
+    if os.Getenv("APP_ENV") == "" || os.Getenv("APP_ENV") == "local" {
+        if err := godotenv.Load(); err != nil {
+            log.Fatal("Error loading .env file")
+        }
+    }
 
 	db, err := database.InitDB()
 	if err != nil {
@@ -78,9 +81,23 @@ func main() {
 	}))
 	r.Use(gin.Recovery())
 
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+	
 	// Define routes
 	api := r.Group("/api")
 
+	api.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"message": "Server is running",
+		})
+	})
 	api.POST("/auth/login", authController.Login)
 	api.POST("/auth/refresh", authController.RefreshToken)
 	api.POST("/auth/logout", authController.Logout)
@@ -105,7 +122,7 @@ func main() {
 		port = "8080"
 	}
 	log.Printf("Server starting on port %s", port)
-	if err := r.Run("localhost:" + port); err != nil {
+	if err := r.Run("0.0.0.0:" + port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

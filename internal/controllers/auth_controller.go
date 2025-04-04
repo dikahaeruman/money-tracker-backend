@@ -54,8 +54,8 @@ func (ac *AuthController) Login(c *gin.Context) {
 	log.Printf("Token: %s, Refresh token: %s", token, refreshToken)
 
 	// Set cookies with correct expiration
-	c.SetCookie("token", token, int(jwtDuration.Seconds()), "/", "", true, true)
-	c.SetCookie("refresh_token", refreshToken, int(refreshDuration.Seconds()), "/", "", true, true)
+	c.SetCookie("token", token, int(jwtDuration.Seconds()), "/", "", false, true)
+	c.SetCookie("refresh_token", refreshToken, int(refreshDuration.Seconds()), "/", "", false, true)
 
 	// Respond with success
 	c.JSON(http.StatusOK, utils.SuccessResponse("Login successful", gin.H{

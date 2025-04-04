@@ -16,3 +16,15 @@ cmd = "./tmp/main"
 [watch]
 full_reload = false  # Set to true if you need full reload on every change
 delve = false
+
+[log]
+time = false
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+clean_on_exit = true
